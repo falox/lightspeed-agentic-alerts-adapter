@@ -1,54 +1,57 @@
 # System Overview
 
-The alerts adapter is a stateless, single-replica Go component that polls OpenShift AlertManager for firing alerts and creates `AgenticRun` custom resources (`agentic.openshift.io/v1alpha1`) to trigger automated remediation via the Lightspeed Agentic operator. It uses a create-only, poll-based design with no internal state: each cycle diffs AlertManager against the Kubernetes API to determine which alerts need action.
+The alerts adapter polls OpenShift AlertManager and creates `AgenticRun` resources to start analysis and remediation through the Lightspeed Agentic operator. It runs as one replica, only creates runs, and has no persistent storage. It keeps target information and creation backoff in memory.
 
 ## Behavioral Rules
 
 ### System Role
 
-1. The adapter SHALL poll AlertManager on a configurable interval (default 30s), fetch active alerts, and create `AgenticRun` CRs for alerts that pass filtering and deduplication.
-2. The adapter SHALL operate as a single-replica deployment inside an OpenShift cluster in the `openshift-lightspeed` namespace.
-3. The adapter SHALL use polling (not webhooks) so a restart immediately sees all firing alerts without requiring redelivery.
-4. The adapter SHALL create all AgenticRuns in the `openshift-lightspeed` namespace (or the namespace from `POD_NAMESPACE`).
-5. The adapter SHALL treat HTTP 409 AlreadyExists on AgenticRun creation as a no-op (return `false, nil`).
+1. The adapter SHALL poll AlertManager at a configurable interval (default 30 seconds), fetch active alerts, and create runs that pass filtering and deduplication.
+2. The adapter SHALL run as a single-replica deployment. The default namespace SHALL be `openshift-lightspeed`.
+3. The adapter SHALL run an immediate poll on startup so it can see alerts still firing after a restart. Alerts that resolve during downtime may not be seen.
+4. All AgenticRuns SHALL be created in the adapter namespace selected by `POD_NAMESPACE`. The alert's namespace SHALL go in `spec.targetNamespaces`, not `metadata.namespace`.
+5. HTTP 409 AlreadyExists on creation SHALL be a no-op. The adapter SHALL not update or delete existing runs, including when alerts resolve.
 
-### Component Inventory
+### Component Responsibilities
 
-6. **AlertManager client** (`internal/alertmanager`): retrieves active, non-silenced, non-inhibited alerts. Re-reads the ServiceAccount bearer token on every call to handle rotation. Trusts the in-cluster service CA for TLS.
-7. **AgenticRun builder and client** (`internal/agenticrun`): `build.go` translates an alert into an AgenticRun CR with deterministic naming and embedded Go template for the request field. `client.go` wraps controller-runtime to create/list AgenticRuns.
-8. **Poll loop** (`internal/adapter`): runs the `reconcile` method on each tick. Stateless deduplication: skips alerts below `preRunDelay`, with an active (non-terminal) AgenticRun, within `postRunDelay` of a terminal AgenticRun, or within creation backoff. Filters by receiver allowlist.
-9. **Configuration** (`internal/config`): loads runtime-tunable parameters from a ConfigMap each cycle.
-10. **Suspended mode client** (`internal/agenticolsconfig`): reads the `AgenticOLSConfig` singleton to determine whether the adapter should skip reconciliation.
-11. **Multicluster** (`internal/multicluster`): watches `SpokeCluster` resources, builds per-cluster reconciliation targets, manages a dynamic target registry.
+6. Alert retrieval SHALL request active, non-silenced, non-inhibited alerts. Local requests SHALL read the ServiceAccount token on each call and use the service CA for TLS.
+7. Run construction SHALL produce deterministic names, alert metadata, and an investigation request using the rules in [AgenticRun building](agenticrun-building.md).
+8. Filtering and deduplication SHALL apply receiver selection, pre-run delay, active-run checks, cooldown, and creation backoff in that order. Several alerts in one stable group can share an active run.
+9. Configuration SHALL be loaded once at startup from `/etc/alerts-adapter/config.yaml`. File changes SHALL require a process restart.
+10. The suspension check SHALL read the `AgenticOLSConfig` singleton named `cluster` before each cycle's alert and run operations.
+11. Multicluster discovery SHALL list and watch `SpokeCluster` resources and update the set of targets used by later cycles.
 
-### External Dependencies
+### Integration Points
 
-12. The adapter depends on the `AgenticRun` CRD types from `github.com/openshift/lightspeed-agentic-operator/api`.
-13. The adapter depends on the `SpokeCluster` CRD types from `github.com/openshift/lightspeed-hub/api` (multicluster mode only).
-14. The adapter uses the AlertManager v2 API client from `github.com/prometheus/alertmanager`.
+12. The adapter SHALL create `agentic.openshift.io/v1alpha1` `AgenticRun` resources. The agentic operator owns their workflow and cleanup after creation.
+13. Multicluster mode SHALL discover cluster-scoped `hub.openshift.io/v1alpha1` `SpokeCluster` resources.
+14. Alert retrieval SHALL use the AlertManager v2 alerts API.
 
 ### Lifecycle
 
-15. The adapter SHALL exit cleanly on SIGTERM or SIGINT, completing or cancelling any in-flight poll cycle before stopping.
-16. The adapter SHALL use structured JSON logging via `log/slog`, with the logger passed explicitly (no globals except `slog.SetDefault` in main).
+15. SIGTERM or SIGINT SHALL cancel or complete in-flight work and stop the process cleanly.
+16. The adapter SHALL write structured JSON logs for startup, shutdown, target failures, and creation results.
+16a. Deduplication SHALL read Kubernetes state each cycle. Creation backoff SHALL be kept in memory and cleared on restart.
 
 ## Configuration Surface
 
-| Field | Default | Description |
+File fields and defaults are defined in [configuration](configuration.md#configuration-surface).
+
+| Startup setting | Default | Description |
 |---|---|---|
-| `pollInterval` | `30s` | Interval between reconcile cycles |
-| `preRunDelay` | `0s` | Minimum alert firing duration before creating an AgenticRun |
-| `postRunDelay` | `1h` | Cooldown after a terminal AgenticRun before creating another |
-| `filtering.allowedReceivers` | `[]` (empty) | AlertManager receiver allowlist; empty means no alerts processed |
-| `deduplication.ignoredLabels` | `[pod, instance, endpoint, uid]` | Labels excluded from stable fingerprint computation |
-| `tools.skills` | (none) | Run-level skills (OCI images + mount paths) added to AgenticRuns |
-| `ALERTMANAGER_URL` | `https://alertmanager-main.openshift-monitoring.svc:9094` | AlertManager endpoint (env var) |
-| `POD_NAMESPACE` | `openshift-lightspeed` | Namespace for ConfigMap and AgenticRun creation (env var) |
-| `--multicluster` | `false` | Enable SpokeCluster discovery and per-cluster reconciliation (flag) |
-| `MULTICLUSTER_MAX_CONCURRENT_TARGETS` | `4` | Max simultaneous target reconciliations in multicluster mode (env var) |
+| `ALERTMANAGER_URL` | `https://alertmanager-main.openshift-monitoring.svc:9094` | Local endpoint; an explicitly empty value disables the local target |
+| `POD_NAMESPACE` | `openshift-lightspeed` | Namespace for runs and spoke credential Secrets |
+| `--multicluster` | `false` | Enable spoke discovery alongside any local target |
+| `MULTICLUSTER_MAX_CONCURRENT_TARGETS` | `4` | Positive target concurrency limit in multicluster mode; ignored in single-cluster mode |
+
+## Deployment Ownership
+
+The classic Lightspeed operator deploys the local adapter when `OLSConfig.spec.ols.deployment.alertsAdapter.configMapRef` is set. The hub operator deploys a separate multicluster adapter with local polling disabled. This repo also provides manifests for direct deployment. See the parent [deployment lifecycle](../../../../.ai/spec/what/deployment-lifecycle.md) and [multicluster contract](../../../../.ai/spec/what/alerts-adapter-multicluster.md).
 
 ## Constraints
 
-- Terminal phases: Completed, Failed, Denied, Escalated, EmergencyStopped.
-- AgenticRun names are bounded to 63 characters (Kubernetes label value limit, since the agentic operator uses the name as a label value).
-- Two fingerprint labels on each AgenticRun: `alert-fingerprint` (original AlertManager fingerprint for UI lookups) and `alert-group-id` (stable FNV-64a hash for dedup matching).
+- Terminal phases are Completed, Failed, Denied, Escalated, and EmergencyStopped. `NoActionRequired` is a reason on the Analyzed condition that derives as Completed.
+- The desired name limit is 63 characters because the operator uses run names as label values. The long-namespace gap is recorded in [building rule 16a](agenticrun-building.md#metadata-sanitization).
+- Cooldown for analysis-only completion remains a [planned correction](poll-loop.md#post-run-delay-cooldown).
+- An empty receiver allowlist skips all alerts. There is no separate severity filter.
+- There is no persistent database, HTTP health endpoint, or Prometheus metrics endpoint in the current adapter.

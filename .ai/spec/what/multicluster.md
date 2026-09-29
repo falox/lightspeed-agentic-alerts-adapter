@@ -19,12 +19,15 @@ For cross-repo multicluster behavioral rules (credential flow, hub-spoke interac
 6. When a SpokeCluster bearing the credential label is created after startup, the adapter SHALL configure its spoke target after reading the referenced credential Secret.
 7. When the credential label value of a configured SpokeCluster changes, the adapter SHALL replace its spoke target using the newly referenced Secret.
 8. When the credential label is removed from a configured SpokeCluster, the adapter SHALL remove its spoke target.
-9. When a configured SpokeCluster is deleted, the adapter SHALL remove its spoke target.
+9. When a configured SpokeCluster is deleted, the adapter SHALL remove its spoke target from future target snapshots. Work already included in a cycle may continue until it finishes, times out, or the process is stopped.
 10. When a referenced credential Secret cannot be read or does not contain non-empty `alertmanager-url`, `token`, and `ca-bundle` data values, the adapter SHALL report the failure with the SpokeCluster name and SHALL NOT configure that spoke target.
 
 ### Credential Secrets
 
 11. For each spoke target, the adapter SHALL read the Secret named by the `hub.openshift.io/alert-credential-secret` label. The `alertmanager-url` data value is the remote AlertManager endpoint, `token` is the bearer credential, and `ca-bundle` is the PEM-encoded CA bundle for TLS validation.
+
+11a. The adapter SHALL refresh a target's credentials when the SpokeCluster is reconciled. Restarting the adapter also reloads credentials. A Secret-only change or an AlertManager connection error SHALL NOT directly trigger a credential refresh in the current implementation.
+11b. [PLANNED] The adapter SHALL re-fetch changed credentials and retry after an authentication or connection failure. This recovery path is not implemented.
 
 ### Independent Reconciliation
 
