@@ -141,8 +141,6 @@ data:
 - [test/e2e/README.md](test/e2e/README.md) — how to run E2E tests locally and in CI
 - [.ai/spec/](.ai/spec/README.md) — current behavior, implementation guides, and planned corrections
 
-`openspec/` is retained as migration history and is not the current spec source.
-
 ## License
 
 [Apache License 2.0](LICENSE)

@@ -18,7 +18,7 @@ Start with the [spec index](.ai/spec/README.md). Behavioral contracts live in `.
 4. Update implementation guides and replace planned markers when the behavior is implemented.
 5. Update the parent Lightspeed specs when a contract spans repositories.
 
-Keep existing rule identifiers stable. Use sub-numbers for new rules and record important design decisions in `.ai/spec/decisions/`, or in the parent workspace for shared decisions. `openspec/` is retained as migration history; it is not the current workflow or spec source.
+Keep existing rule identifiers stable. Use sub-numbers for new rules and record important design decisions in `.ai/spec/decisions/`, or in the parent workspace for shared decisions.
 
 ### Code changes
 

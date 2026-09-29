@@ -52,7 +52,7 @@ dependencies:
   env: IMAGE
 ```
 
-The test step receives `IMAGE` and calls `make deploy-e2e` and `make test-e2e`. Job and step-registry definitions live outside this repo; check `openshift/release` for their current status. The retained OpenSpec task list does not confirm that they are installed.
+The test step receives `IMAGE` and calls `make deploy-e2e` and `make test-e2e`. Job and step-registry definitions live outside this repo; check `openshift/release` for their current status.
 
 ## Environment Variables
 
@@ -84,4 +84,4 @@ The deploy script (`hack/deploy-e2e.sh`) patches the adapter ConfigMap with test
 - **Fingerprint labels**: Both `alert-fingerprint` and `alert-group-id` are set
 - **Error handling**: 409 AlreadyExists logged at Info level (not Error)
 
-The adapter has no separate severity filter. Receiver tests depend on the cluster's AlertManager routing. These tests do not cover every open gap in the [current specs](../../.ai/spec/README.md#open-work-and-migration-notes).
+The adapter has no separate severity filter. Receiver tests depend on the cluster's AlertManager routing. These tests do not cover every open gap in the [current specs](../../.ai/spec/README.md#open-work).

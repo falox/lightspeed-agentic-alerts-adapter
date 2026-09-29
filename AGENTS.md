@@ -10,7 +10,6 @@ All specifications live in `.ai/spec/`. Start with [.ai/spec/README.md](.ai/spec
 - Code map and reconcile flow: `.ai/spec/how/`.
 - Human architecture overview: [ARCHITECTURE.md](ARCHITECTURE.md).
 - Cross-repo contracts: the parent workspace's `.ai/spec/`.
-- `openspec/` is retained as migration history. Use `.ai/spec/` for current behavior and planned changes.
 - `CLAUDE.md` is a symlink to this file. Edit instructions here.
 
 ## Commands

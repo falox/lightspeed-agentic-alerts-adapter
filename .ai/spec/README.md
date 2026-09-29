@@ -14,7 +14,7 @@ A Go component with no persistent storage that polls OpenShift AlertManager for 
 
 Covers the alerts adapter's internal behavior. Cross-repo integration contracts (multicluster credential flow, hub-spoke interaction model) live in the parent spec at `ols/.ai/spec/what/alerts-adapter-multicluster.md`.
 
-The `.ai/spec/` files are the current spec source. `openspec/` is retained as migration history and is not authoritative. Implemented changes, including file-based configuration, agent overrides, and skill hints, are described here. Old task checkboxes do not establish current behavior.
+The `.ai/spec/` files are the current spec source. Implemented changes, including file-based configuration, agent overrides, and skill hints, are described here.
 
 ## Audience
 
@@ -56,10 +56,10 @@ AI agents. Content is optimized for precision and machine consumption.
 
 This repo is part of the OpenShift Lightspeed family. See `ols/.ai/spec/README.md` for the product-level spec index and `ols/.ai/spec/how/repo-map.md` for the cross-repo concern lookup table.
 
-## Open Work and Migration Notes
+## Open Work
 
 Known implementation gaps are recorded next to the affected rules: [cooldown after analysis-only completion](what/poll-loop.md#post-run-delay-cooldown), [name length](what/agenticrun-building.md#metadata-sanitization), [local history across mode changes](what/agenticrun-building.md#agenticrun-crud), [credential refresh](what/multicluster.md#credential-secrets), and [remote error redaction](what/alert-retrieval.md#remote-alertmanager-spoke-clusters).
 
 The hub CA requirement and the shared spoke-identity contract remain open cross-repo issues. Their existing rules are retained pending a separate decision.
 
-The old severity-filtering change is not implemented in the current loop. There is no new commitment to add it; current selection uses receiver routing. E2E tests exist in `test/e2e/`; CI work recorded under the old OpenSpec change should be checked in `openshift/release` before removing that history. Future design options remain in [ARCHITECTURE.md](../../ARCHITECTURE.md#future-options).
+There is no separate severity filter in the current loop; current selection uses receiver routing. E2E tests exist in `test/e2e/`; check `openshift/release` for the current CI job and step-registry definitions. Future design options remain in [ARCHITECTURE.md](../../ARCHITECTURE.md#future-options).

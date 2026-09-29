@@ -127,4 +127,4 @@ These are design options, not claims about current behavior:
 - Limit creation rates and model costs during alert storms.
 - Add backoff for repeated alert build failures.
 
-Known implementation gaps are listed next to the affected requirements in [.ai/spec/README.md](.ai/spec/README.md#open-work-and-migration-notes). OpenSpec remains migration history until its remaining external CI work has been checked.
+Known implementation gaps are listed next to the affected requirements in [.ai/spec/README.md](.ai/spec/README.md#open-work).
