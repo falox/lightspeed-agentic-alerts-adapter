@@ -78,11 +78,10 @@ oc apply -f "${TMPDIR}/rbac.yaml"
 oc apply -f "${TMPDIR}/configmap.yaml"
 oc apply -f "${TMPDIR}/deployment.yaml"
 
-# Wait for deployment to be available
-echo "Waiting for deployment to be available (timeout: 5m)..."
-oc wait deployment "${DEPLOYMENT_NAME}" \
+# Wait for the new image; an old pod can keep the deployment available during a failed rollout.
+echo "Waiting for deployment rollout to complete (timeout: 5m)..."
+oc rollout status deployment "${DEPLOYMENT_NAME}" \
     -n "${NAMESPACE}" \
-    --for=condition=available \
     --timeout=300s
 
 echo "=== E2E Deploy complete ==="

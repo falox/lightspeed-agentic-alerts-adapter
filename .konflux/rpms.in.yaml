@@ -1,0 +1,20 @@
+# Resolve against the micro runtime, not the Go builder that already has OpenSSL.
+context:
+  containerfile:
+    file: ../Containerfile
+    stageName: runtime-base
+packages:
+  - openssl-libs
+  - openssl-fips-provider
+  - crypto-policies
+installWeakDeps: false
+arches:
+  - x86_64
+  - aarch64
+contentOrigin:
+  repos:
+    - repoid: ubi-9-baseos-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/$basearch/baseos/os
+    # Source RPMs are needed for the Konflux source image.
+    - repoid: ubi-9-baseos-source-rpms
+      baseurl: https://cdn-ubi.redhat.com/content/public/ubi/dist/ubi9/9/$basearch/baseos/source/SRPMS

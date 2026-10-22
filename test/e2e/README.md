@@ -11,6 +11,8 @@ End-to-end tests that validate the alerts-adapter against a live OpenShift clust
 
 The deploy script automatically installs the lightspeed-agentic-operator (and its CRD) if the `AgenticRun` CRD is not already present on the cluster.
 
+The script waits up to five minutes for the adapter rollout to complete. If the new image cannot start, setup fails even if a pod from the previous deployment is still healthy.
+
 ## Running Locally
 
 The simplest way is `deploy-e2e-local`, which builds the image, pushes it to the cluster's internal registry, and deploys the adapter in one step:

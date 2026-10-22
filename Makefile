@@ -17,6 +17,7 @@ E2E_INTERNAL_REGISTRY = image-registry.openshift-image-registry.svc:5000
 E2E_IMAGE_REF = openshift-lightspeed/$(BINARY_NAME):e2e
 
 .PHONY: all build test clean lint fmt vet run coverage container-build container-push help install-lint deploy-e2e deploy-e2e-local test-e2e undeploy-e2e install-ginkgo govulncheck
+.PHONY: konflux-rpm-lock
 
 all: build
 
@@ -81,6 +82,9 @@ container-build:
 container-push: container-build
 	podman push $(IMAGE_NAME):$(IMAGE_TAG)
 
+konflux-rpm-lock:
+	rpm-lockfile-prototype .konflux/rpms.in.yaml --outfile .konflux/rpms.lock.yaml
+
 help:
 	@echo "Targets:"
 	@echo "  build           - Build the binary"
@@ -93,6 +97,7 @@ help:
 	@echo "  run             - Build and run the binary"
 	@echo "  coverage        - Generate test coverage report"
 	@echo "  container-build - Build container image"
+	@echo "  konflux-rpm-lock - Update the RPM lockfile for hermetic builds"
 	@echo "  container-push  - Build and push container image (set IMAGE_NAME; IMAGE_TAG defaults to latest)"
 	@echo "  deploy-e2e-local - Build, push to cluster registry, and deploy for E2E testing"
 	@echo "  deploy-e2e      - Deploy adapter to cluster for E2E testing (requires IMAGE env var)"
